@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Infectivity latent methods comparison</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+    h1 { font-size: 1.4rem; }
+    h2 { font-size: 1.1rem; margin-top: 2rem; border-bottom: 1px solid #ccc; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.9rem; }
+    th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; }
+    th { background: #f4f4f4; }
+    pre { background: #f8f8f8; padding: 12px; overflow-x: auto; font-size: 0.8rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    img { max-width: 100%; height: auto; border: 1px solid #eee; }
+    .note { color: #555; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <h1>TB infectivity — parallel latent / composite methods</h1>
+  <p class="note">
+    Compares three branches: <strong>polychoric</strong> (threshold-model CFA),
+    <strong>tetrachoric</strong> (binary DWLS CFA), and <strong>PLS-PM</strong>
+    (two-block composite + HOC). Cavity vs four sputum tests are modelled as
+    Imaging vs Microbiology blocks where applicable.
+  </p>
+
+  <h2>Cohort</h2>
+  <p>n polychoric = 459 &nbsp;|&nbsp; n tetrachoric = 459 &nbsp;|&nbsp; n PLS = 459</p>
+  <table><thead><tr><th>Indicator</th><th>P(=1)</th></tr></thead><tbody><tr><td>Cavity</td><td>0.318</td></tr><tr><td>AFB_Smear</td><td>0.440</td></tr><tr><td>TB_PCR</td><td>0.553</td></tr><tr><td>Solid_Culture</td><td>0.562</td></tr><tr><td>Liquid_Culture</td><td>0.708</td></tr></tbody></table>
+
+  
+  <h2>Block-level construct decomposition</h2>
+  <p class="note">
+    Indicator-level "relative influence" (Cavity 14% / Micro 86%) is biased by
+    indicator counts (1 vs 4). At the construct / block level, both methods
+    agree the two blocks contribute symmetrically to Infectivity.
+  </p>
+  <h3>PLS-PM: R<sup>2</sup>(F<sub>inf</sub>) = &Sigma; &beta;<sub>j</sub> &middot; r<sub>jY</sub></h3>
+  <table>
+    <thead><tr><th>Block</th><th>r<sub>jY</sub></th><th>&beta;<sub>j</sub> (multivariate)</th>
+           <th>&beta;&middot;r contribution</th><th>share of R<sup>2</sup></th></tr></thead>
+    <tbody>
+      <tr><td>Imaging (Cavity)</td>
+        <td>0.7881</td><td>0.6345</td>
+        <td>0.5000</td>
+        <td><strong>50.00%</strong></td></tr>
+      <tr><td>Microbiology</td>
+        <td>0.7881</td><td>0.6345</td>
+        <td>0.5000</td>
+        <td><strong>50.00%</strong></td></tr>
+      <tr><td colspan="3" style="text-align:right;">R<sup>2</sup>(F<sub>infectivity</sub>) =</td>
+        <td>1.0000</td><td>&middot;</td></tr>
+    </tbody>
+  </table>
+  <p class="note">Inter-block correlation &rho;(F<sub>im</sub>, F<sub>mi</sub>) = 0.242.</p>
+
+  <h3>Polychoric HOC: &gamma;<sub>k</sub> = path(Infectivity &rarr; F<sub>k</sub>)</h3>
+  <table>
+    <thead><tr><th>Weighting</th><th>&gamma;<sub>Imaging</sub></th><th>&gamma;<sub>Micro</sub></th>
+           <th>share Imaging</th><th>share Micro</th></tr></thead>
+    <tbody>
+      <tr><td>Naive (sqrt(&phi;), Schmid-Leiman)</td>
+        <td>0.8058</td>
+        <td>0.8058</td>
+        <td><strong>50.00%</strong></td>
+        <td><strong>50.00%</strong></td></tr>
+      <tr><td>&rho;<sub>c</sub>-weighted (eff = &gamma;&middot;sqrt(&rho;<sub>c</sub>))</td>
+        <td>0.8058</td>
+        <td>0.7475</td>
+        <td><strong>51.87%</strong></td>
+        <td><strong>48.13%</strong></td></tr>
+      <tr><td>AVE-weighted (eff = &gamma;&middot;sqrt(AVE))</td>
+        <td>0.8058</td>
+        <td>0.6282</td>
+        <td><strong>56.19%</strong></td>
+        <td><strong>43.81%</strong></td></tr>
+    </tbody>
+  </table>
+  <p class="note">
+    &phi;(F<sub>1</sub>, F<sub>2</sub>) = 0.6493.
+    Naive form follows Schmid-Leiman just-identification with &gamma;<sub>1</sub>=&gamma;<sub>2</sub>=sqrt(&phi;).
+    Reliability- and AVE-weighted forms downweight the four-indicator Microbiology
+    block because its &rho;<sub>c</sub>/AVE are below 1 while the single-item Imaging block is taken at 1.0.
+  </p>
+
+
+  <h2>Relative influence / effective weights (indicator level)</h2>
+  <div class="grid">
+    <section>
+      <h3>Polychoric (2F HOC)</h3>
+      <table><thead><tr><th>Indicator</th><th>1F ULS share</th><th>2F HOC share</th></tr></thead><tbody><tr><td>Cavity</td><td>0.0991</td><td>0.1448</td></tr><tr><td>AFB_Smear</td><td>0.2424</td><td>0.2301</td></tr><tr><td>TB_PCR</td><td>0.1985</td><td>0.1885</td></tr><tr><td>Solid_Culture</td><td>0.2412</td><td>0.2290</td></tr><tr><td>Liquid_Culture</td><td>0.2187</td><td>0.2076</td></tr></tbody></table>
+    </section>
+    <section>
+      <h3>Tetrachoric (2F DWLS HOC)</h3>
+      <p>phi(F1,F2) = 0.6505 &nbsp; SRMR = 0.0846</p><table><thead><tr><th>Indicator</th><th>HOC DWLS share</th></tr></thead><tbody><tr><td>Solid_Culture</td><td>0.2337</td></tr><tr><td>Liquid_Culture</td><td>0.2190</td></tr><tr><td>AFB_Smear</td><td>0.2185</td></tr><tr><td>TB_PCR</td><td>0.1867</td></tr><tr><td>Cavity</td><td>0.1421</td></tr></tbody></table>
+    </section>
+    <section>
+      <h3>PLS-PM (effective w)</h3>
+      <p>v_imaging=+0.707 v_micro=+0.707 &nbsp; beta_im=+0.788 beta_micro=+0.788</p><table><thead><tr><th>Indicator</th><th>w_eff</th><th>variance share</th></tr></thead><tbody><tr><td>Cavity</td><td>+0.7071</td><td>0.5000</td></tr><tr><td>Solid_Culture</td><td>+0.3786</td><td>0.1433</td></tr><tr><td>AFB_Smear</td><td>+0.3643</td><td>0.1327</td></tr><tr><td>Liquid_Culture</td><td>+0.3459</td><td>0.1197</td></tr><tr><td>TB_PCR</td><td>+0.3229</td><td>0.1043</td></tr></tbody></table>
+    </section>
+  </div>
+
+  <h2>Figures</h2>
+  <figure><figcaption>Prevalence (tetrachoric diagnostic)</figcaption>
+    <img src="figures/tet_prevalence.png" alt="prev"/></figure>
+  <div class="grid">
+    <figure><figcaption>Polychoric: Pearson vs poly</figcaption>
+      <img src="figures/poly_pearson_vs_poly.png" alt="poly"/></figure>
+    <figure><figcaption>Tetrachoric: Pearson vs tet</figcaption>
+      <img src="figures/tet_pearson_vs_tet.png" alt="tet"/></figure>
+    <figure><figcaption>PLS: effective weights</figcaption>
+      <img src="figures/pls_effective_weights.png" alt="pls"/></figure>
+  </div>
+  <div class="grid">
+    <figure><img src="figures/poly_path_2f.png" alt="poly path"/></figure>
+    <figure><img src="figures/tet_path_2f_dwls.png" alt="tet path"/></figure>
+    <figure><img src="figures/pls_path.png" alt="pls path"/></figure>
+  </div>
+
+  <h2>Report excerpts</h2>
+  <h3>Polychoric</h3>
+  <pre>=== Infectivity latent — POLYCHORIC branch ===
+n = 459
+
+1) Correlation comparison (off-diagonal magnitudes):
+   mean |Pearson r|     = 0.3610
+   mean |Polychoric r|  = 0.5457
+   (Polychoric removes the binary-truncation bias of Pearson; expect  larger magnitudes for unbalanced indicators such as Cavity.)
+
+2) One-factor ULS on POLYCHORIC R
+     indicator  loading_F  communality  abs_loading  relative_influence
+     AFB_Smear   0.902841     0.815122     0.902841            0.242435
+ Solid_Culture   0.898294     0.806932     0.898294            0.241214
+Liquid_Culture   0.814619     0.663604     0.814619            0.218746
+        TB_PCR   0.739365     0.546660     0.739365            0.198538
+        Cavity   0.368930     0.136109     0.368930            0.099067
+   SRMR(off-diag) = 0.0779    mean h^2 = 0.5937
+
+3) Two-factor constrained CFA (F1=Cavity ; F2=AFB/PCR/Solid/Liquid) on POLYCHORIC R
+     indicator  loading_F1_Imaging  loading_F2_Microbio  schmid_leiman_general  abs_general  relative_influence_HOC
+        Cavity             0.56822             0.000000               0.457857     0.457857                0.144831
+     AFB_Smear             0.00000             0.902841               0.727487     0.727487                0.230121
+        TB_PCR             0.00000             0.739365               0.595762     0.595762                0.188453
+ Solid_Culture             0.00000             0.898294               0.723823     0.723823                0.228962
+Liquid_Culture             0.00000             0.814619               0.656400     0.656400                0.207634
+   phi(F1,F2)       = 0.6493
+   SRMR(off-diag)   = 0.0779
+   ULS objective    = 0.060659
+
+Schmid-Leiman general loadings rescale each indicator onto a single
+higher-order Infectivity dimension (g_i = lambda_i * sqrt(phi) for phi>0).
+Relative influence on HOC Infectivity (sums to 1):
+        AFB_Smear  0.2301
+    Solid_Culture  0.2290
+   Liquid_Culture  0.2076
+           TB_PCR  0.1885
+           Cavity  0.1448</pre>
+  <h3>Tetrachoric</h3>
+  <pre>=== Infectivity latent — TETRACHORIC branch ===
+n = 459
+
+Marginal prevalence P(item = 1):
+           Cavity  0.3181
+        AFB_Smear  0.4401
+           TB_PCR  0.5534
+    Solid_Culture  0.5621
+   Liquid_Culture  0.7081
+
+Mean off-diagonal correlations:
+   Pearson (phi-coef)  = 0.3610
+   Tetrachoric         = 0.5457
+
+1-factor results:
+   ULS  loadings = [0.3689, 0.9028, 0.7394, 0.8983, 0.8146]    SRMR = 0.0779
+   DWLS loadings = [0.3686, 0.8714, 0.7446, 0.9317, 0.8732]    SRMR = 0.0846   wSRMR = 0.0759
+
+2-factor constrained (F1 = Cavity ; F2 = AFB/PCR/Solid/Liquid):
+   ULS   phi = 0.6493    SRMR = 0.0779
+   DWLS  phi = 0.6505    SRMR = 0.0846    wSRMR = 0.0759
+
+Schmid-Leiman HOC general loadings (DWLS):
+    Solid_Culture  g = +0.7514   share = 0.2337
+   Liquid_Culture  g = +0.7043   share = 0.2190
+        AFB_Smear  g = +0.7028   share = 0.2185
+           TB_PCR  g = +0.6005   share = 0.1867
+           Cavity  g = +0.4570   share = 0.1421</pre>
+  <h3>PLS</h3>
+  <pre>=== Infectivity composite — PLS-PM branch (two blocks + HOC) ===
+n = 459
+
+Block 1 (Imaging) indicators: Cavity
+Block 2 (Microbiology) indicators: AFB_Smear, TB_PCR, Solid_Culture, Liquid_Culture
+
+Outer weights (Mode A, NIPALS converged):
+   Imaging   : Cavity w = 1.0000 (trivial — single indicator)
+   Microbiology:
+            AFB_Smear   w = +0.5152   loading = +0.8034
+               TB_PCR   w = +0.4567   loading = +0.7121
+        Solid_Culture   w = +0.5354   loading = +0.8348
+       Liquid_Culture   w = +0.4892   loading = +0.7629
+
+Inter-block correlation corr(F_imaging, F_micro) = +0.2421
+
+Higher-order Infectivity composite (PC1 of block scores):
+   v_imaging = +0.7071    beta(Imaging -> Inf)   = +0.7881
+   v_micro   = +0.7071    beta(Microbio -> Inf)  = +0.7881
+
+Effective per-indicator weights on Infectivity composite:
+             Cavity   w_eff = +0.7071   share = 0.5000   95% CI [+0.7071, +0.7071]
+      Solid_Culture   w_eff = +0.3786   share = 0.1433   95% CI [+0.3654, +0.3919]
+          AFB_Smear   w_eff = +0.3643   share = 0.1327   95% CI [+0.3525, +0.3753]
+     Liquid_Culture   w_eff = +0.3459   share = 0.1197   95% CI [+0.3294, +0.3614]
+             TB_PCR   w_eff = +0.3229   share = 0.1043   95% CI [+0.2991, +0.3419]
+
+Reliability:
+   Imaging block    : alpha = nan    rho_c = nan    AVE = 1.0
+   Microbiology     : alpha = 0.7835    rho_c = 0.8607    AVE = 0.6079
+
+Fornell-Larcker discriminant validity:
+   sqrt(AVE_micro)  = 0.7796   vs  |corr(F_im, F_mi)| = 0.2421   PASS</pre>
+</body>
+</html>

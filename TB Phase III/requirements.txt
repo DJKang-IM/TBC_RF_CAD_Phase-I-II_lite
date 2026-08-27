@@ -1,0 +1,5 @@
+pydicom>=2.4.4
+pandas>=2.2.0
+tqdm>=4.66.0
+scikit-image>=0.22.0
+lungmask>=0.2.20

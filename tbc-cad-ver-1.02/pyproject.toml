@@ -1,0 +1,27 @@
+[project]
+name = "tbc-cad-ver-1-02"
+version = "1.0.2"
+description = "Integrated TB CAD: Phase I-II RF + Phase III D1-D4 RF + D6 XGBoost (tbc-cad-ver.1.02)."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",
+  "pydicom>=2.4",
+  "torch>=2.0",
+  "torchvision>=0.15",
+  "scikit-learn>=1.3",
+  "joblib>=1.3",
+  "tqdm>=4.65",
+  "xgboost>=2.0",
+  "certifi>=2023.0",
+]
+
+[project.scripts]
+tbc-cad-infer = "tbc_cad_ver_102.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

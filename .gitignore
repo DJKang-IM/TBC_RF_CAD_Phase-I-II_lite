@@ -1,0 +1,47 @@
+# Data / artifacts (do not commit)
+**/*.dcm
+**/*.npz
+**/*.nii
+**/*.nii.gz
+**/*.joblib
+**/*.pth
+**/*.pt
+**/*.ckpt
+**/*.onnx
+**/*.zip
+**/*.7z
+**/*.rar
+**/*.tar
+**/*.tar.gz
+**/*.tgz
+
+# Common exports / output artefacts (often data)
+**/*.csv
+**/*.xlsx
+**/*.xls
+**/*.json
+
+# Artifacts / outputs
+**/artifacts/**
+**/artifact/**
+
+# Python caches
+**/__pycache__/**
+**/*.pyc
+
+# Virtual envs
+**/.venv/**
+**/venv/**
+
+# OS / IDE
+.DS_Store
+.vscode/**
+.idea/**
+
+
+# Lite: never commit PHI / full-res
+*.dcm
+*.dicom
+**/full_res/
+**/original/
+.env

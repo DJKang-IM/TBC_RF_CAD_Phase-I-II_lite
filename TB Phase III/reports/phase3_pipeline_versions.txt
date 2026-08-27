@@ -1,0 +1,155 @@
+Phase III — pipeline version cheat sheet (quick lookup)
+=======================================================
+Updated: 2026-05-01
+
+Also maintained in repo root: README.md → section "Phase III — TB Phase III/"
+(paths below assume local clone under TB Phase III/).
+
+Performance snapshot (Macro AUROC D1-D5, mean ± std, 5-fold CV)
+-----------------------------------------------------------------
+  v3.2  DenseNet121 @1024 stretch  CLAHE  RF-balanced : 0.8456 ± 0.0103
+  v3.7  DenseNet121 @1024 stretch CLAHE + lung crop RF-balanced : 0.8472 ± 0.0084  ← BEST MEAN (frozen RF D1-D5)
+  v3.8  v3.7 + post-CLAHE robust IQR norm (no ImageNet norm on tensors)      : 0.8460 ± 0.0091
+  v3.4  DenseNet121 @1024 letterbox CLAHE RF-balanced : 0.8377 ± 0.0090  ← MOST STABLE
+  v3.1  DenseNet121 @512  stretch   CLAHE RF-balanced : (see artifacts)
+  v2.9  DenseNet121 @448  stretch   CLAHE RF-balanced : (see artifacts)
+  v3.5 / v3.6 — archived partial-unfreeze experiments (see JSON/summary only); main line continues frozen-RF.
+  v3.5  Partial-unfreeze denseblock4→RF (15+25 ep) : 0.8161 ± 0.0075
+  v3.6  Same as v3.5, longer epochs (25+45 ep)      : 0.8200 ± 0.0100
+
+Naming rule
+-----------
+  - Feature NPZ filename encodes: cohort date, backbone, preprocess tags, pipeline_version (v21, v22, … v26).
+  - Training folder under artifacts/ mirrors the same tag + head type (rf_xgb vs bce).
+  - build_phase3_features.py default --image_size is 448 (was 224); override with --image_size 224 for old comparisons.
+  - End-to-end DenseNet fine-tune: finetune_phase3_densenet_multilabel.py (reloads DICOMs at --image-size; NPZ only supplies paths/labels).
+
+Core distinctions (what actually changes)
+-----------------------------------------
+  v1.06 / file tag densenet121 — backbone DenseNet121, no CLAHE (baseline vs CLAHE runs).
+  v2.1 — DenseNet121 + CLAHE (equalize_adapthist, clip 0.03). RF+XGB heads in train_phase3_active_cv_v103.py.
+  v2.2 — + lung crop (lungmask) + CLAHE (see *_clahe_lungcrop_* npz).
+  v2.3 — lung crop + CLAHE + robust norm post-CLAHE.
+  v2.4 — CLAHE + robust norm, no lung crop.
+  v2.5 — robust norm -> CLAHE order (pre_clahe), with lung crop in the runs done here.
+  v2.6 — SAME frozen features as v2.1 (DenseNet121 + CLAHE). TRAINING: train_phase3_active_cv_v106_bce.py,
+         BCEWithLogitsLoss + per-label pos_weight on frozen X; six-head sigmoid (D1–D6). NPZ may be cloned from v2.1 with meta pipeline_version 2.6 only.
+  v2.7 — DenseNet121 + CLAHE, same X as v2.1. TRAINING: train_phase3_active_rf_d1d5_cv.py with --rf_class_weight balanced.
+         D1–D5 RF only; D6 not trained (no XGB). Macro AUROC = mean(D1..D5).
+  v2.8 — Same features as 2.7. TRAINING: same script with --rf_class_weight bce_pos_weight
+         (per-label {0:1, 1:neg/pos} on train fold, same idea as BCE pos_weight; still RF, not MLP).
+  v2.9 — Phase III 전량: DenseNet121 + CLAHE, image_size 448 (동결 피처 NPZ).
+         RF D1-D5 balanced. D6 미포함. 스모크(256장) 실험은 폐기.
+         임베드는 D5 반영본 권장: <REDACTED_PATH> (일반 260428 폴더는 D5 태그가 비어 0으로 나올 수 있음).
+  v3.1 — Phase III 전량: DenseNet121 + CLAHE, image_size 512.
+         RF D1-D5 balanced. D6 미포함.
+  v3.2 — Phase III 전량: DenseNet121 + CLAHE, image_size 1024.
+         RF D1-D5 balanced. D6 미포함.
+  v3.3 — Phase III 전량: DenseNet121 + CLAHE, image_size 2048 + letterbox resize (aspect 유지 + pad).
+         RF D1-D5 balanced. D6 미포함.
+  v3.4 — Phase III 전량: DenseNet121 + CLAHE, image_size 1024 + letterbox resize (aspect 유지 + pad).
+         RF D1-D5 balanced. D6 미포함.
+  v3.5 — 4-stage fine-tune pipeline (base: v3.2 cohort / 1024 stretch / CLAHE).
+         Stage1: frozen backbone, linear head warm-up 15 epochs (BCE, head LR=3e-3).
+         Stage2: unfreeze denseblock4+norm5, 25 epochs (backbone LR=1e-5, cosine sched).
+         Stage3: feature extraction with fine-tuned backbone (1024-d penultimate).
+         Stage4: RF D1-D5 balanced 600 trees on new features.
+         Script: train_phase3_v35_finetune_then_rf.py | run: scripts\run_phase3_v35_finetune_rf.ps1
+  v3.6 — Same as v3.5; longer training: Stage1 25 ep, Stage2 45 ep (same LRs / partial-unfreeze / RF).
+         Script: same train_phase3_v35_finetune_then_rf.py | run: scripts\run_phase3_v36_finetune_rf.ps1
+         CLI: --pipeline_version_tag 3.6 --artifact_slug v36 --epochs_stage1 25 --epochs_stage2 45
+  v3.7 — v3.2 와 동일: DenseNet121 + CLAHE + image_size 1024 + stretch resize + RF D1-D5 balanced.
+         추가: HU 단계에서 lungmask bbox 크롭 후 window→01→CLAHE→백본.
+         마진: 타이트 크롭 금지 — bbox 높이·너비 각각의 10~15% 범위로 변 확장; 스크립트는 --lung-margin 0.15 (각 변 15%).
+         build_phase3_features.py --lung-crop --lung-margin 0.15 | run: scripts\run_phase3_v37_full_1024_lungcrop.ps1
+  v3.8 — v3.7 와 동일 + CLAHE 직후 **per-image robust normalization (IQR)**.
+         CLI: --robust-norm iqr --robust-norm-order post_clahe --robust-norm-clip 5.0
+         이 플래그가 켜지면 torchvision ImageNet Normalize는 끔(transform 경로는 v2.3/v2.4와 동일).
+         run: scripts\run_phase3_v38_full_1024_lungcrop_robustnorm.ps1
+
+v2.6 files (canonical paths)
+-----------------------------
+  Features (2294 x 1024, identical X to v21 CLAHE file unless rebuilt):
+    D:\TB Phase III\phase3_features_active_all_260428_d5kw_fix_densenet121_clahe_v26.npz
+  BCE CV artifacts (D1–D6, default train script output):
+    D:\TB Phase III\artifacts\phase3_active_cv_v26_clahe_bce_densenet121_d1_d6\
+      phase3_active_cv_v106_bce_test_summary.txt
+      phase3_active_cv_v106_bce_test_metrics.json
+      phase3_active_cv_v106_bce_per_run.csv
+  Older D1–D5-only BCE run (if present): artifacts\phase3_active_cv_v26_clahe_bce_densenet121\
+  Re-run:
+    D:\TB Phase III\scripts\run_phase3_v26_clahe_bce.ps1
+
+v2.9 artifacts (448 전량)
+-------------------------
+  NPZ: phase3_features_active_all_260428_d5kw_fix_densenet121_clahe_448_v29.npz
+  RF TEST: artifacts\phase3_active_cv_v29_rf_clahe_densenet448_d1_d5\
+  Re-run: scripts\run_phase3_v29_full_448.ps1
+
+v3.1 artifacts (512 전량)
+-------------------------
+  NPZ: phase3_features_active_all_260428_d5kw_fix_densenet121_clahe_512_v31.npz
+  RF TEST: artifacts\phase3_active_cv_v31_rf_clahe_densenet512_d1_d5\
+  Re-run: scripts\run_phase3_v31_full_512.ps1
+
+v3.2 artifacts (1024 전량)
+--------------------------
+  NPZ: phase3_features_active_all_260428_d5kw_fix_densenet121_clahe_1024_v32.npz
+  RF TEST: artifacts\phase3_active_cv_v32_rf_clahe_densenet1024_d1_d5\
+  Re-run: scripts\run_phase3_v32_full_1024.ps1
+
+v3.3 artifacts (2048 + letterbox 전량)
+--------------------------------------
+  NPZ: phase3_features_active_all_260428_d5kw_fix_densenet121_clahe_2048_letterbox_v33.npz
+  RF TEST: artifacts\phase3_active_cv_v33_rf_clahe_densenet2048_letterbox_d1_d5\
+  Re-run: scripts\run_phase3_v33_full_2048_letterbox.ps1
+
+v3.4 artifacts (1024 + letterbox 전량)
+--------------------------------------
+  NPZ: phase3_features_active_all_260428_d5kw_fix_densenet121_clahe_1024_letterbox_v34.npz
+  RF TEST: artifacts\phase3_active_cv_v34_rf_clahe_densenet1024_letterbox_d1_d5\
+  Re-run: scripts\run_phase3_v34_full_1024_letterbox.ps1
+
+v3.5 artifacts (partial-unfreeze finetune → RF, 1024 stretch)
+--------------------------------------------------------------
+  No NPZ for features (fine-tuning is per-fold, features extracted inside training loop).
+  Reference NPZ for paths/labels: phase3_features_active_all_260428_d5kw_fix_densenet121_clahe_1024_v32.npz
+  Artifacts: artifacts\phase3_active_cv_v35_finetune_rf_1024_d1_d5\
+    phase3_v35_finetune_rf_test_metrics.json
+    phase3_v35_finetune_rf_test_summary.txt
+  Re-run: scripts\run_phase3_v35_finetune_rf.ps1
+
+v3.6 artifacts (same pipeline, 25+45 epochs)
+---------------------------------------------
+  Artifacts: artifacts\phase3_active_cv_v36_finetune_rf_1024_d1_d5\
+    phase3_v36_finetune_rf_test_metrics.json
+    phase3_v36_finetune_rf_test_summary.txt
+  Re-run: scripts\run_phase3_v36_finetune_rf.ps1
+
+v3.7 artifacts (1024 + CLAHE + lung crop, stretch)
+--------------------------------------------------
+  NPZ: phase3_features_active_all_260428_d5kw_fix_densenet121_clahe_lungcrop_1024_v37.npz
+  RF TEST: artifacts\phase3_active_cv_v37_rf_clahe_densenet1024_lungcrop_d1_d5\
+  Re-run: scripts\run_phase3_v37_full_1024_lungcrop.ps1
+
+v3.8 artifacts (1024 + CLAHE + lung crop + robust IQR post-CLAHE)
+------------------------------------------------------------------
+  NPZ: phase3_features_active_all_260428_d5kw_fix_densenet121_clahe_lungcrop_robust_iqr_1024_v38.npz
+  RF TEST: artifacts\phase3_active_cv_v38_rf_clahe_densenet1024_lungcrop_robust_iqr_d1_d5\
+  Re-run: scripts\run_phase3_v38_full_1024_lungcrop_robustnorm.ps1
+
+v2.7 / v2.8 artifacts
+----------------------
+  NPZ (same tensors as v2.1 CLAHE):
+    ...\phase3_features_active_all_260428_d5kw_fix_densenet121_clahe_v27.npz
+    ...\phase3_features_active_all_260428_d5kw_fix_densenet121_clahe_v28.npz
+  Results:
+    ...\artifacts\phase3_active_cv_v27_rf_clahe_densenet121_d1_d5\
+    ...\artifacts\phase3_active_cv_v28_rf_clahe_densenet121_d1_d5_bce_weight\
+  Script: train_phase3_active_rf_d1d5_cv.py  |  Re-run: scripts\run_phase3_v27_v28_rf.ps1
+
+Compare apples-to-apples
+------------------------
+  - RF+XGB on CLAHE features (D1–D6): artifacts\phase3_active_cv_v21_clahe_densenet121\
+  - RF D1–D5 only (2.7 vs 2.8): folders above — macro is D1–D5, not comparable to v21 D1–D6 macro without recomputing.
+  - BCE MLP D1–D6: artifacts\phase3_active_cv_v26_clahe_bce_densenet121_d1_d6\
